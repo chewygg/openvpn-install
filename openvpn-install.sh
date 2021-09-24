@@ -221,7 +221,7 @@ if [[ ! -e /etc/openvpn/server/server.conf ]]; then
 	echo
 	echo "OpenVPN installation is ready to begin."
 
-	# If running inside a container, disable LimitNPROC to prevent conflicts
+	# Se estiver usando container, desabilite LimitNPROC to prevent conflicts
 	if systemd-detect-virt -cq; then
 		mkdir /etc/systemd/system/openvpn-server@server.service.d/ 2>/dev/null
 		echo "[Service]
@@ -234,11 +234,11 @@ LimitNPROC=infinity" > /etc/systemd/system/openvpn-server@server.service.d/disab
 		yum install -y epel-release
 		yum install -y openvpn openssl ca-certificates tar
 	else
-		# Else, OS must be Fedora
+		# Se for Fedora
 		dnf install -y openvpn openssl ca-certificates tar
 	fi
 
-	# Get easy-rsa
+	# Baixando o OpenVPN
 	easy_rsa_url='https://github.com/OpenVPN/easy-rsa/releases/download/v3.0.8/EasyRSA-3.0.8.tgz'
 	mkdir -p /etc/openvpn/server/easy-rsa/
 	{ wget -qO- "$easy_rsa_url" 2>/dev/null || curl -sL "$easy_rsa_url" ; } | tar xz -C /etc/openvpn/server/easy-rsa/ --strip-components 1
@@ -261,6 +261,10 @@ LimitNPROC=infinity" > /etc/systemd/system/openvpn-server@server.service.d/disab
 	# Generate the DH file
 	EASYRSA_CRL_DAYS=3650 ./easyrsa gen-dh
 	# Generate server.conf
+	echo 'push "compress lz4-v2"
+push "sndbuf 512000"
+push "rcvbuf 512000"' > /etc/openvpn/server/server.conf
+
 	echo "local $ip
 port $port
 proto $protocol
@@ -272,19 +276,14 @@ key server.key
 dh dh.pem
 auth SHA512
 compress lz4-v2
-push "compress lz4-v2"
-status /var/openvpn/openvpn-status.log
-log-append /var/openvpn/openvpn-status.log
 mute 20
 txqueuelen 1000
 ncp-disable
 sndbuf 512000
 rcvbuf 512000
-push "sndbuf 512000"
-push "rcvbuf 512000"
 fast-io
 topology subnet
-server 172.16.254.224 255.255.255.224" > /etc/openvpn/server/server.conf
+server 172.16.254.224 255.255.255.224" >> /etc/openvpn/server/server.conf
 	# IPv6
 	if [[ -z "$ip6" ]]; then
 		echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server/server.conf
